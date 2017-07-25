@@ -4,8 +4,8 @@
 let DHT = {
   _crt: ffi('void *mgos_dht_create(int, int)'),
   _cls: ffi('void mgos_dht_close(void *)'),
-  _gt: ffi('int mgos_dht_get_temp_int(void *)'),
-  _gh: ffi('int mgos_dht_get_humidity_int(void *)'),
+  _gt: ffi('float mgos_dht_get_temp(void *)'),
+  _gh: ffi('float mgos_dht_get_humidity(void *)'),
 
   // Define type of sensors.
   DHT11: 11,
@@ -21,16 +21,15 @@ let DHT = {
     },
 
     // Returns temperature in DegC
-    // or -127.0 if operation failed
+    // or 'NaN' if operation failed
     getTemp: function() {
-      // C-functions output value of “1234” equals 12.34 Deg.
-      return DHT._gt(this.dht) / 100.0;
+      return DHT._gt(this.dht);
     },
 
-    // Returns temperature in RH% or -127.0 if operation failed.
+    // Returns temperature in RH%
+    // or 'NaN' if operation failed.
     getHumidity: function() {
-      // C-functions output value of “4321” equals 43.21 %.
-      return DHT._gh(this.dht) / 100.0;
+      return DHT._gh(this.dht);
     },
   },
 
@@ -38,7 +37,8 @@ let DHT = {
   create: function(pin, type) {
     let obj = Object.create(DHT._proto);
     // Initialize DHT library.
-    // Return value: DHT handle opaque pointer.
+    // Return value: DHT handle opaque pointer
+    // or 'null' if operation failed.
     obj.dht = DHT._crt(pin, type);
     return obj;
   },

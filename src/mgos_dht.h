@@ -20,29 +20,30 @@
 extern "C" {
 #endif
 
-#define DHT11 11
-#define DHT22 22
-#define DHT21 21
-#define AM2301 21
-#define AM2302 22
+/* Supported sensor types */
+enum dht_type {
+  DHT11 = 11,
+  DHT21 = 21,
+  AM2301 = 21,
+  DHT22 = 22,
 
-struct mgos_dht {
-  int pin;
-  int type;
-  unsigned char data[5];
-  bool last_result;
-  unsigned int last_read_time;
+  AM2302 = 22
 };
 
-struct mgos_dht *mgos_dht_create(int pin, int type);
+struct mgos_dht;
+
+/*
+ * Initializes DHT.
+ * Returns the DHT handle opaque pointer
+ * or 'NULL' if operation failed.
+ */
+struct mgos_dht *mgos_dht_create(int pin, enum dht_type type);
+/* Closes the DHT handle. */
 void mgos_dht_close(struct mgos_dht *dht);
-
+/* Returns temperature in DegC or 'NAN' if operation failed. */
 float mgos_dht_get_temp(struct mgos_dht *dht);
+/* Returns humidity in % or 'NAN' if operation failed. */
 float mgos_dht_get_humidity(struct mgos_dht *dht);
-
-/* mJS wrappers */
-int mgos_dht_get_temp_int(struct mgos_dht *dht);
-int mgos_dht_get_humidity_int(struct mgos_dht *dht);
 
 bool mgos_dht_init(void);
 

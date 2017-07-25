@@ -13,13 +13,23 @@
 #include "fw/src/mgos_hal.h"
 #include "mongoose/mongoose.h"
 
-#define MGOS_DHT_READ_DELAY_MS 2000
-#define MGOS_DHT_RES_FAIL -12700
+#ifndef IRAM
+#define IRAM
+#endif
 
-IRAM static bool dht_wait(int pin, int lvl) {
-  int ticks = 100 * (F_CPU / 1000000L);
+#define MGOS_DHT_READ_DELAY_MS 2000
+
+struct mgos_dht {
+  int pin;
+  enum dht_type type;
+  unsigned char data[5];
+  bool last_result;
+  unsigned int last_read_time;
+};
+
+IRAM static bool dht_wait(int pin, int lvl, int ticks) {
   while (mgos_gpio_read(pin) != lvl) {
-    if (--ticks == 0) return false;
+    if (--ticks <= 0) return false;
   }
   return true;
 }
@@ -27,6 +37,7 @@ IRAM static bool dht_wait(int pin, int lvl) {
 IRAM static bool dht_read(struct mgos_dht *dht) {
   if (dht == NULL) return false;
   bool err = true;
+  int t = 100 * (mgos_get_cpu_freq() / 1000000L);
   unsigned int now = mg_time() * 1000;
   if ((now - dht->last_read_time) < MGOS_DHT_READ_DELAY_MS) {
     return dht->last_result;
@@ -52,10 +63,10 @@ IRAM static bool dht_read(struct mgos_dht *dht) {
   mgos_gpio_set_pull(dht->pin, MGOS_GPIO_PULL_UP);
   mgos_usleep(10);
 
-  if (!dht_wait(dht->pin, 1) || !dht_wait(dht->pin, 0)) goto end;
+  if (!dht_wait(dht->pin, 1, t) || !dht_wait(dht->pin, 0, t)) goto end;
 
   for (int i = 0; i < 40; i++) {
-    if (!dht_wait(dht->pin, 1)) goto end;
+    if (!dht_wait(dht->pin, 1, t)) goto end;
     dht->data[i / 8] <<= 1;
     mgos_usleep(50);
     if (mgos_gpio_read(dht->pin) == 1) {
@@ -73,7 +84,7 @@ end:
   return dht->last_result;
 }
 
-struct mgos_dht *mgos_dht_create(int pin, int type) {
+struct mgos_dht *mgos_dht_create(int pin, enum dht_type type) {
   struct mgos_dht *dht = calloc(1, sizeof(*dht));
   if (dht == NULL) return NULL;
   dht->pin = pin;
@@ -130,18 +141,6 @@ float mgos_dht_get_humidity(struct mgos_dht *dht) {
     }
   }
   return res;
-}
-
-int mgos_dht_get_temp_int(struct mgos_dht *dht) {
-  if (dht == NULL) return MGOS_DHT_RES_FAIL;
-  float res = mgos_dht_get_temp(dht);
-  return isnan(res) ? MGOS_DHT_RES_FAIL : round(res * 100.0);
-}
-
-int mgos_dht_get_humidity_int(struct mgos_dht *dht) {
-  if (dht == NULL) return MGOS_DHT_RES_FAIL;
-  float res = mgos_dht_get_humidity(dht);
-  return isnan(res) ? MGOS_DHT_RES_FAIL : round(res * 100.0);
 }
 
 bool mgos_dht_init(void) {
