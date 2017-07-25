@@ -1,0 +1,16 @@
+author: mongoose-os
+type: lib
+description: A DHT lib
+version: 1.0
+
+sources:
+  - src
+filesystem:
+  - fs
+config_schema:
+libs:
+
+tags:
+  - c
+
+skeleton_version: 2017-05-18
