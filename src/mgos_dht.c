@@ -17,14 +17,14 @@
 #define IRAM
 #endif
 
-#define MGOS_DHT_READ_DELAY_MS 2000
+#define MGOS_DHT_READ_DELAY 2.0
 
 struct mgos_dht {
   int pin;
   enum dht_type type;
   unsigned char data[5];
   bool last_result;
-  unsigned int last_read_time;
+  double last_read_time;
 };
 
 IRAM static bool dht_wait(int pin, int lvl, int ticks) {
@@ -38,8 +38,8 @@ IRAM static bool dht_read(struct mgos_dht *dht) {
   if (dht == NULL) return false;
   bool err = true;
   int t = 100 * (mgos_get_cpu_freq() / 1000000L);
-  unsigned int now = mg_time() * 1000;
-  if ((now - dht->last_read_time) < MGOS_DHT_READ_DELAY_MS) {
+  double now = mg_time();
+  if ((now - dht->last_read_time) < MGOS_DHT_READ_DELAY) {
     return dht->last_result;
   }
   dht->last_read_time = now;
