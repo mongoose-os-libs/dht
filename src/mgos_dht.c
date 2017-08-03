@@ -8,6 +8,7 @@
  * [mgos_dht.c](https://github.com/mongoose-os-libs/dht/blob/master/src/mgos_dht.c)
  */
 
+#include <stdint.h>
 #include "mgos_dht.h"
 #include "fw/src/mgos_gpio.h"
 #include "fw/src/mgos_hal.h"
@@ -17,29 +18,33 @@
 #define IRAM
 #endif
 
-#define MGOS_DHT_READ_DELAY_MS 2000
+#define MGOS_DHT_READ_DELAY (2)
 
 struct mgos_dht {
   int pin;
   enum dht_type type;
-  unsigned char data[5];
+  uint8_t data[5];
   bool last_result;
-  unsigned int last_read_time;
+  double last_read_time;
 };
 
-IRAM static bool dht_wait(int pin, int lvl, int ticks) {
+IRAM static bool dht_wait(int pin, int lvl, uint32_t usecs) {
+  uint32_t t = 0;
   while (mgos_gpio_read(pin) != lvl) {
-    if (--ticks <= 0) return false;
+    if (t == usecs) {
+      t = 0;
+      break;
+    }
+    mgos_usleep(1);
+    t++;
   }
-  return true;
+  return t != 0;
 }
 
 IRAM static bool dht_read(struct mgos_dht *dht) {
   if (dht == NULL) return false;
-  bool err = true;
-  int t = 100 * (mgos_get_cpu_freq() / 1000000L);
-  unsigned int now = mg_time() * 1000;
-  if ((now - dht->last_read_time) < MGOS_DHT_READ_DELAY_MS) {
+  double now = mg_time();
+  if ((now - dht->last_read_time) < MGOS_DHT_READ_DELAY) {
     return dht->last_result;
   }
   dht->last_read_time = now;
@@ -48,38 +53,49 @@ IRAM static bool dht_read(struct mgos_dht *dht) {
 
   mgos_gpio_set_mode(dht->pin, MGOS_GPIO_MODE_INPUT);
   mgos_gpio_set_pull(dht->pin, MGOS_GPIO_PULL_UP);
-  mgos_msleep(250);
+  mgos_msleep(10);
 
+  /* Send start signal at least 1-10ms to ensure sensor could detect it */
   mgos_gpio_set_mode(dht->pin, MGOS_GPIO_MODE_OUTPUT);
   mgos_gpio_write(dht->pin, 0);
-  mgos_msleep(20);
+  mgos_msleep(10);
 
+  /* Enter critical section */
   mgos_ints_disable();
-
-  mgos_gpio_write(dht->pin, 1);
-  mgos_usleep(40);
-
+  /* Pulls up the data bus and wait 20-40us for sensors response */
   mgos_gpio_set_mode(dht->pin, MGOS_GPIO_MODE_INPUT);
   mgos_gpio_set_pull(dht->pin, MGOS_GPIO_PULL_UP);
+  mgos_usleep(40);
+
+  /* The sensor sets low the bus 80us as response signal,
+     then sets high 80us for preparation to send data */
+  if (!dht_wait(dht->pin, 1, 80) || !dht_wait(dht->pin, 0, 82)) {
+    mgos_ints_enable();
+    return false;
+  }
+
+  /* Wait a rising edge and sleep after that 50 us.
+     If a pin is in low state, then it was a pulse 26-28 us (0),
+     otherwise - ~ 70us (1) */
   mgos_usleep(10);
-
-  if (!dht_wait(dht->pin, 1, t) || !dht_wait(dht->pin, 0, t)) goto end;
-
-  for (int i = 0; i < 40; i++) {
-    if (!dht_wait(dht->pin, 1, t)) goto end;
-    dht->data[i / 8] <<= 1;
+  for (int i = 0, j; i < 40; i++) {
+    if (!dht_wait(dht->pin, 1, 50)) {
+      mgos_ints_enable();
+      return false;
+    }
     mgos_usleep(50);
-    if (mgos_gpio_read(dht->pin) == 1) {
-      dht->data[i / 8] |= 1;
+    j = i / 8;
+    dht->data[j] <<= 1;
+    if (mgos_gpio_read(dht->pin)) {
+      dht->data[j] |= 1;
       mgos_usleep(50);
     }
   }
-  err = false;
-end:
+  /* Exit critical section */
   mgos_ints_enable();
-  if (!err &&
-      (dht->data[4] ==
-       ((dht->data[0] + dht->data[1] + dht->data[2] + dht->data[3]) & 0xFF)))
+
+  if (dht->data[4] ==
+      ((dht->data[0] + dht->data[1] + dht->data[2] + dht->data[3]) & 0xFF))
     dht->last_result = true;
   return dht->last_result;
 }
