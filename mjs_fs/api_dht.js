@@ -15,17 +15,20 @@ let DHT = {
   AM2302: 22,
 
   _proto: {
+    // **`dht.close()`**
     // Close DHT handle. Return value: none.
     close: function() {
       return DHT._cls(this.dht);
     },
 
+    // **`dht.getTemp()`**
     // Returns temperature in DegC
     // or 'NaN' if operation failed
     getTemp: function() {
       return DHT._gt(this.dht);
     },
 
+    // **`dht.getHumidity()`**
     // Returns temperature in RH%
     // or 'NaN' if operation failed.
     getHumidity: function() {
@@ -33,12 +36,16 @@ let DHT = {
     },
   },
 
-  // Create a DHT object.
+  // **`DHT.create(pin, type)`**
+  // Create a DHT object. `type` could be `DHT.DHT11`, `DHT.DHT21`,
+  // `DHT.DHT22`. Return value: DHT handle opaque pointer
+  // or 'null' if operation failed. Example:
+  // ```javascript
+  // let dht = DHT.create(5, DHT.DHT11);
+  // print('Temperature:', dht.getTemp());
+  // ```
   create: function(pin, type) {
     let obj = Object.create(DHT._proto);
-    // Initialize DHT library.
-    // Return value: DHT handle opaque pointer
-    // or 'null' if operation failed.
     obj.dht = DHT._crt(pin, type);
     return obj;
   },
