@@ -55,10 +55,11 @@ IRAM static bool dht_read(struct mgos_dht *dht) {
   mgos_gpio_set_pull(dht->pin, MGOS_GPIO_PULL_UP);
   mgos_msleep(10);
 
-  /* Send start signal at least 1-10ms to ensure sensor could detect it */
+  /* Send start signal at least 10ms (18ms for DHT11) to ensure
+     sensor could detect it */
   mgos_gpio_set_mode(dht->pin, MGOS_GPIO_MODE_OUTPUT);
   mgos_gpio_write(dht->pin, 0);
-  mgos_msleep(10);
+  mgos_msleep(18);
 
   /* Enter critical section */
   mgos_ints_disable();
@@ -69,7 +70,7 @@ IRAM static bool dht_read(struct mgos_dht *dht) {
 
   /* The sensor sets low the bus 80us as response signal,
      then sets high 80us for preparation to send data */
-  if (!dht_wait(dht->pin, 1, 80) || !dht_wait(dht->pin, 0, 82)) {
+  if (!dht_wait(dht->pin, 1, 90) || !dht_wait(dht->pin, 0, 90)) {
     mgos_ints_enable();
     return false;
   }
