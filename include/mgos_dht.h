@@ -4,8 +4,9 @@
  */
 
 /*
- * View this file on GitHub:
- * [mgos_dht.h](https://github.com/mongoose-os-libs/dht/blob/master/src/mgos_dht.h)
+ * DHT sensor API.
+ *
+ * See https://learn.adafruit.com/dht/overview for more information.
  */
 
 #ifndef CS_MOS_LIBS_DHT_SRC_MGOS_DHT_H_
@@ -26,23 +27,21 @@ enum dht_type {
   DHT21 = 21,
   AM2301 = 21,
   DHT22 = 22,
-
   AM2302 = 22
 };
 
 struct mgos_dht;
 
-/*
- * Initializes DHT.
- * Returns the DHT handle opaque pointer
- * or 'NULL' if operation failed.
- */
+/* Initialise DHT sensor. Return an opaque DHT handle, or `NULL` on error. */
 struct mgos_dht *mgos_dht_create(int pin, enum dht_type type);
-/* Closes the DHT handle. */
+
+/* Close DHT handle. */
 void mgos_dht_close(struct mgos_dht *dht);
-/* Returns temperature in DegC or 'NAN' if operation failed. */
+
+/* Return temperature in DegC or 'NAN' on failure. */
 float mgos_dht_get_temp(struct mgos_dht *dht);
-/* Returns humidity in % or 'NAN' if operation failed. */
+
+/* Return humidity in % or 'NAN' on failure. */
 float mgos_dht_get_humidity(struct mgos_dht *dht);
 
 bool mgos_dht_init(void);
