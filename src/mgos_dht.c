@@ -10,8 +10,8 @@
 
 #include <stdint.h>
 #include "mgos_dht.h"
-#include "fw/src/mgos_gpio.h"
-#include "fw/src/mgos_hal.h"
+#include "mgos_gpio.h"
+#include "mgos_hal.h"
 #include "mongoose/mongoose.h"
 
 #ifndef IRAM
