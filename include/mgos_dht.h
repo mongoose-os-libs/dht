@@ -9,8 +9,8 @@
  * See https://learn.adafruit.com/dht/overview for more information.
  */
 
-#ifndef CS_MOS_LIBS_DHT_SRC_MGOS_DHT_H_
-#define CS_MOS_LIBS_DHT_SRC_MGOS_DHT_H_
+#ifndef CS_MOS_LIBS_DHT_INCLUDE_MGOS_DHT_H_
+#define CS_MOS_LIBS_DHT_INCLUDE_MGOS_DHT_H_
 
 #include <math.h>
 #include <stdbool.h>
@@ -38,10 +38,8 @@ float mgos_dht_get_temp(struct mgos_dht *dht);
 /* Return humidity in % or 'NAN' on failure. */
 float mgos_dht_get_humidity(struct mgos_dht *dht);
 
-bool mgos_dht_init(void);
-
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
 
-#endif /* CS_MOS_LIBS_DHT_SRC_MGOS_DHT_H_ */
+#endif /* CS_MOS_LIBS_DHT_INCLUDE_MGOS_DHT_H_ */
