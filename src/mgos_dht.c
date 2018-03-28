@@ -12,7 +12,7 @@
 #include "mgos_dht.h"
 #include "mgos_gpio.h"
 #include "mgos_hal.h"
-#include "mongoose/mongoose.h"
+#include "mongoose.h"
 
 #ifndef IRAM
 #define IRAM
