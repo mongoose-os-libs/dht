@@ -27,8 +27,6 @@
 #include <math.h>
 #include <stdbool.h>
 
-#include "mgos_dht.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
