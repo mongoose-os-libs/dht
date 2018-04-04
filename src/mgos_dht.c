@@ -37,7 +37,7 @@ struct mgos_dht {
   enum dht_type type;
   uint8_t data[5];
   bool last_result;
-  double last_read_time;
+  struct mgos_dht_stats stats;
 };
 
 IRAM static bool dht_wait(int pin, int lvl, uint32_t usecs) {
@@ -55,11 +55,13 @@ IRAM static bool dht_wait(int pin, int lvl, uint32_t usecs) {
 
 IRAM static bool dht_read(struct mgos_dht *dht) {
   if (dht == NULL) return false;
-  double now = mg_time();
-  if ((now - dht->last_read_time) < MGOS_DHT_READ_DELAY) {
+  double start = mg_time();
+  dht->stats.read++;
+  if ((start - dht->stats.last_read_time) < MGOS_DHT_READ_DELAY) {
+    dht->stats.read_success_cached++;
     return dht->last_result;
   }
-  dht->last_read_time = now;
+  dht->stats.last_read_time = start;
   dht->last_result = false;
   memset(dht->data, 0, 5);
 
@@ -108,14 +110,19 @@ IRAM static bool dht_read(struct mgos_dht *dht) {
   mgos_ints_enable();
 
   if (dht->data[4] ==
-      ((dht->data[0] + dht->data[1] + dht->data[2] + dht->data[3]) & 0xFF))
+      ((dht->data[0] + dht->data[1] + dht->data[2] + dht->data[3]) & 0xFF)) {
     dht->last_result = true;
+    dht->stats.read_success++;
+    dht->stats.read_success_usecs+=1000000*(mg_time()-start);
+    dht->stats.last_read_time=start;
+  }
   return dht->last_result;
 }
 
 struct mgos_dht *mgos_dht_create(int pin, enum dht_type type) {
   struct mgos_dht *dht = calloc(1, sizeof(*dht));
   if (dht == NULL) return NULL;
+  memset(dht, 0, sizeof(struct mgos_dht));
   dht->pin = pin;
   dht->type = type;
   if (!mgos_gpio_set_mode(dht->pin, MGOS_GPIO_MODE_INPUT) ||
@@ -170,6 +177,14 @@ float mgos_dht_get_humidity(struct mgos_dht *dht) {
     }
   }
   return res;
+}
+
+bool mgos_dht_getStats(struct mgos_dht *dht, struct mgos_dht_stats *stats) {
+  if (!dht || !stats)
+    return false;
+
+  memcpy((void *)stats, (const void *)&dht->stats, sizeof(struct mgos_dht_stats));
+  return true;
 }
 
 bool mgos_dht_init(void) {
