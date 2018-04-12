@@ -27,8 +27,6 @@
 #include <math.h>
 #include <stdbool.h>
 
-#include "mgos_dht.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -37,6 +35,15 @@ extern "C" {
 enum dht_type { DHT11 = 11, DHT21 = 21, AM2301 = 21, DHT22 = 22, AM2302 = 22 };
 
 struct mgos_dht;
+struct mgos_dht_stats {
+  double last_read_time;         // value of mg_time() upon last call to _read()
+  uint32_t read;                 // calls to _read()
+  uint32_t read_success;         // successful _read()
+  uint32_t read_success_cached;  // calls to _read() which were cached
+  // Note: read_errors := read - read_success - read_success_cached
+  double read_success_usecs;     // time spent in successful uncached _read()
+};
+
 
 /* Initialise DHT sensor. Return an opaque DHT handle, or `NULL` on error. */
 struct mgos_dht *mgos_dht_create(int pin, enum dht_type type);
@@ -49,6 +56,16 @@ float mgos_dht_get_temp(struct mgos_dht *dht);
 
 /* Return humidity in % or 'NAN' on failure. */
 float mgos_dht_get_humidity(struct mgos_dht *dht);
+
+/*
+ * Returns the running statistics on the sensor interaction, the user provides
+ * a pointer to a `struct mgos_dht_stats` object, which is filled in by this
+ * call.
+ *
+ * Upon success, true is returned. Otherwise, false is returned, in which case
+ * the contents of `stats` is undetermined.
+ */
+bool mgos_dht_getStats(struct mgos_dht *dht, struct mgos_dht_stats *stats);
 
 #ifdef __cplusplus
 }
