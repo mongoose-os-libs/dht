@@ -16,5 +16,6 @@ tags:
   - c
   - js
   - hw
+  - docs:drivers:DHT
 
 manifest_version: 2017-09-29
