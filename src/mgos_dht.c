@@ -20,7 +20,6 @@
  * [mgos_dht.c](https://github.com/mongoose-os-libs/dht/blob/master/src/mgos_dht.c)
  */
 
-#include <stdint.h>
 #include "mgos_dht.h"
 #include "mgos_gpio.h"
 #include "mgos_hal.h"
