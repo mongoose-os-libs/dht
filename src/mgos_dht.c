@@ -32,7 +32,8 @@
 #define MGOS_DHT_READ_DELAY (2)
 
 struct mgos_dht {
-  int pin;
+  int pin_in;
+  int pin_out;
   enum dht_type type;
   uint8_t data[5];
   bool last_result;
@@ -64,26 +65,26 @@ IRAM static bool dht_read(struct mgos_dht *dht) {
   dht->last_result = false;
   memset(dht->data, 0, 5);
 
-  mgos_gpio_set_mode(dht->pin, MGOS_GPIO_MODE_INPUT);
-  mgos_gpio_set_pull(dht->pin, MGOS_GPIO_PULL_UP);
+  mgos_gpio_setup_input(dht->pin_in, MGOS_GPIO_PULL_UP);
   mgos_msleep(10);
 
   /* Send start signal at least 10ms (18ms for DHT11) to ensure
      sensor could detect it */
-  mgos_gpio_set_mode(dht->pin, MGOS_GPIO_MODE_OUTPUT);
-  mgos_gpio_write(dht->pin, 0);
+  mgos_gpio_setup_output(dht->pin_out, MGOS_GPIO_PULL_DOWN);
+  mgos_gpio_write(dht->pin_out, 0);
   mgos_msleep(18);
+  /* Release the line so the pin_input can read the incoming data */
+  mgos_gpio_setup_input(dht->pin_out, MGOS_GPIO_PULL_UP);
 
   /* Enter critical section */
   mgos_ints_disable();
   /* Pulls up the data bus and wait 20-40us for sensors response */
-  mgos_gpio_set_mode(dht->pin, MGOS_GPIO_MODE_INPUT);
-  mgos_gpio_set_pull(dht->pin, MGOS_GPIO_PULL_UP);
+  mgos_gpio_setup_input(dht->pin_in, MGOS_GPIO_PULL_UP);
   mgos_usleep(40);
 
   /* The sensor sets low the bus 80us as response signal,
      then sets high 80us for preparation to send data */
-  if (!dht_wait(dht->pin, 1, 90) || !dht_wait(dht->pin, 0, 90)) {
+  if (!dht_wait(dht->pin_in, 1, 90) || !dht_wait(dht->pin_in, 0, 90)) {
     mgos_ints_enable();
     return false;
   }
@@ -93,14 +94,14 @@ IRAM static bool dht_read(struct mgos_dht *dht) {
      otherwise - ~ 70us (1) */
   mgos_usleep(10);
   for (int i = 0, j; i < 40; i++) {
-    if (!dht_wait(dht->pin, 1, 50)) {
+    if (!dht_wait(dht->pin_in, 1, 50)) {
       mgos_ints_enable();
       return false;
     }
     mgos_usleep(50);
     j = i / 8;
     dht->data[j] <<= 1;
-    if (mgos_gpio_read(dht->pin)) {
+    if (mgos_gpio_read(dht->pin_in)) {
       dht->data[j] |= 1;
       mgos_usleep(50);
     }
@@ -112,24 +113,35 @@ IRAM static bool dht_read(struct mgos_dht *dht) {
       ((dht->data[0] + dht->data[1] + dht->data[2] + dht->data[3]) & 0xFF)) {
     dht->last_result = true;
     dht->stats.read_success++;
-    dht->stats.read_success_usecs+=1000000*(mg_time()-start);
-    dht->stats.last_read_time=start;
+    dht->stats.read_success_usecs += 1000000 * (mg_time() - start);
+    dht->stats.last_read_time = start;
   }
   return dht->last_result;
 }
 
-struct mgos_dht *mgos_dht_create(int pin, enum dht_type type) {
+struct mgos_dht *mgos_dht_create_separate_io(int pin_in, int pin_out,
+                                             enum dht_type type) {
   struct mgos_dht *dht = calloc(1, sizeof(*dht));
   if (dht == NULL) return NULL;
   memset(dht, 0, sizeof(struct mgos_dht));
-  dht->pin = pin;
+  dht->pin_in = pin_in;
+  dht->pin_out = pin_out;
   dht->type = type;
-  if (!mgos_gpio_set_mode(dht->pin, MGOS_GPIO_MODE_INPUT) ||
-      !mgos_gpio_set_pull(dht->pin, MGOS_GPIO_PULL_UP)) {
+
+  if (!mgos_gpio_setup_input(dht->pin_in, MGOS_GPIO_PULL_UP)) {
     mgos_dht_close(dht);
     return NULL;
   }
+
+  if (dht->pin_in != dht->pin_out) {
+    mgos_gpio_setup_output(dht->pin_out, true);
+  }
+
   return dht;
+}
+
+struct mgos_dht *mgos_dht_create(int pin, enum dht_type type) {
+  return mgos_dht_create_separate_io(pin, pin, type);
 }
 
 void mgos_dht_close(struct mgos_dht *dht) {
@@ -142,9 +154,7 @@ float mgos_dht_get_temp(struct mgos_dht *dht) {
 
   if (dht_read(dht)) {
     switch (dht->type) {
-      case DHT11:
-        res = dht->data[2];
-        break;
+      case DHT11: res = dht->data[2]; break;
       case DHT22:
       case DHT21:
         res = dht->data[2] & 0x7F;
@@ -163,9 +173,7 @@ float mgos_dht_get_humidity(struct mgos_dht *dht) {
 
   if (dht_read(dht)) {
     switch (dht->type) {
-      case DHT11:
-        res = dht->data[0];
-        break;
+      case DHT11: res = dht->data[0]; break;
       case DHT22:
       case DHT21:
         res = dht->data[0];
@@ -179,10 +187,10 @@ float mgos_dht_get_humidity(struct mgos_dht *dht) {
 }
 
 bool mgos_dht_getStats(struct mgos_dht *dht, struct mgos_dht_stats *stats) {
-  if (!dht || !stats)
-    return false;
+  if (!dht || !stats) return false;
 
-  memcpy((void *)stats, (const void *)&dht->stats, sizeof(struct mgos_dht_stats));
+  memcpy((void *) stats, (const void *) &dht->stats,
+         sizeof(struct mgos_dht_stats));
   return true;
 }
 
