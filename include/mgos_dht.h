@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2022 Ivan Raykov vankata.raykov@gmail.com
  * Copyright (c) 2014-2018 Cesanta Software Limited
  * All rights reserved
  *
@@ -42,9 +43,14 @@ struct mgos_dht_stats {
   uint32_t read_success;         // successful _read()
   uint32_t read_success_cached;  // calls to _read() which were cached
   // Note: read_errors := read - read_success - read_success_cached
-  double read_success_usecs;     // time spent in successful uncached _read()
+  double read_success_usecs;  // time spent in successful uncached _read()
 };
 
+/* Initialise DHT sensor. Return an opaque DHT handle usign separated io pins
+ * for data input and data output. This is useful when using a galvanic
+ * insulation. In case of an error return `NULL`. */
+struct mgos_dht *mgos_dht_create_separate_io(int pin_in, int pin_out,
+                                             enum dht_type type);
 
 /* Initialise DHT sensor. Return an opaque DHT handle, or `NULL` on error. */
 struct mgos_dht *mgos_dht_create(int pin, enum dht_type type);
